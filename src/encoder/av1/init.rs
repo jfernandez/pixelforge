@@ -70,6 +70,12 @@ impl AV1Encoder {
             .chroma_subsampling(chroma_subsampling)
             .luma_bit_depth(luma_bit_depth)
             .chroma_bit_depth(chroma_bit_depth);
+        // Chain the usage/tuning info behind the codec profile struct. The
+        // same chain must appear in every profile construction for this
+        // session (see encode_usage_info).
+        let mut usage_info = crate::encoder::encode_usage_info(&config);
+        av1_profile_info.p_next =
+            (&mut usage_info as *mut vk::VideoEncodeUsageInfoKHR).cast();
         profile_info.p_next =
             (&mut av1_profile_info as *mut vk::VideoEncodeAV1ProfileInfoKHR).cast();
 

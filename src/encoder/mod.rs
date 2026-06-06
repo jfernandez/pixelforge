@@ -120,6 +120,49 @@ pub enum RateControlMode {
     Vbr,
 }
 
+/// Encoder tuning modes, communicated to the implementation through
+/// `VkVideoEncodeUsageInfoKHR` in the video profile. Drivers use the tuning
+/// mode to select internal encoder presets (e.g. the low-latency rate
+/// control path).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TuningMode {
+    /// Implementation default.
+    Default,
+    /// Highest quality, latency not a concern.
+    HighQuality,
+    /// Low latency (e.g. live streaming).
+    LowLatency,
+    /// Lowest possible latency (e.g. game streaming).
+    #[default]
+    UltraLowLatency,
+    /// Lossless encoding.
+    Lossless,
+}
+
+impl From<TuningMode> for vk::VideoEncodeTuningModeKHR {
+    fn from(mode: TuningMode) -> Self {
+        match mode {
+            TuningMode::Default => vk::VideoEncodeTuningModeKHR::DEFAULT,
+            TuningMode::HighQuality => vk::VideoEncodeTuningModeKHR::HIGH_QUALITY,
+            TuningMode::LowLatency => vk::VideoEncodeTuningModeKHR::LOW_LATENCY,
+            TuningMode::UltraLowLatency => vk::VideoEncodeTuningModeKHR::ULTRA_LOW_LATENCY,
+            TuningMode::Lossless => vk::VideoEncodeTuningModeKHR::LOSSLESS,
+        }
+    }
+}
+
+/// Build the `VkVideoEncodeUsageInfoKHR` for a config, ready to be chained
+/// into the codec profile's `p_next`. The same struct (hints + tuning mode)
+/// must appear in EVERY construction of the video profile for a session:
+/// capability queries, format queries, session creation, image/buffer
+/// creation, and query pools — Vulkan requires the profile chains to match.
+pub(crate) fn encode_usage_info(config: &EncodeConfig) -> vk::VideoEncodeUsageInfoKHR<'static> {
+    vk::VideoEncodeUsageInfoKHR::default()
+        .video_usage_hints(vk::VideoEncodeUsageFlagsKHR::STREAMING)
+        .video_content_hints(vk::VideoEncodeContentFlagsKHR::RENDERED)
+        .tuning_mode(config.tuning_mode.into())
+}
+
 /// Frame types in encoded stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameType {
@@ -194,6 +237,8 @@ pub struct EncodeConfig {
     pub bit_depth: BitDepth,
     /// Rate control mode.
     pub rate_control_mode: RateControlMode,
+    /// Encoder tuning mode (latency/quality preset hint to the driver).
+    pub tuning_mode: TuningMode,
     /// Target bitrate in bits per second.
     pub target_bitrate: u32,
     /// Maximum bitrate in bits per second.
@@ -238,6 +283,7 @@ impl EncodeConfig {
             pixel_format: PixelFormat::Yuv420,
             bit_depth: BitDepth::Eight,
             rate_control_mode: RateControlMode::Disabled,
+            tuning_mode: TuningMode::default(),
             target_bitrate: DEFAULT_TARGET_BITRATE,
             max_bitrate: DEFAULT_MAX_BITRATE,
             quality_level: DEFAULT_H264_QP,
@@ -263,6 +309,7 @@ impl EncodeConfig {
             pixel_format: PixelFormat::Yuv420,
             bit_depth: BitDepth::Eight,
             rate_control_mode: RateControlMode::Disabled,
+            tuning_mode: TuningMode::default(),
             target_bitrate: DEFAULT_TARGET_BITRATE,
             max_bitrate: DEFAULT_MAX_BITRATE,
             quality_level: DEFAULT_H265_QP,
@@ -288,6 +335,7 @@ impl EncodeConfig {
             pixel_format: PixelFormat::Yuv420,
             bit_depth: BitDepth::Eight,
             rate_control_mode: RateControlMode::Disabled,
+            tuning_mode: TuningMode::default(),
             target_bitrate: DEFAULT_TARGET_BITRATE,
             max_bitrate: DEFAULT_MAX_BITRATE,
             quality_level: 128, // AV1 uses 0-255 QP range
@@ -323,6 +371,12 @@ impl EncodeConfig {
     /// Set the quality level (QP for CQP mode).
     pub fn with_quality_level(mut self, level: u32) -> Self {
         self.quality_level = level;
+        self
+    }
+
+    /// Set the encoder tuning mode (defaults to ultra low latency).
+    pub fn with_tuning_mode(mut self, mode: TuningMode) -> Self {
+        self.tuning_mode = mode;
         self
     }
 

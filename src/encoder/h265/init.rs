@@ -83,6 +83,12 @@ impl H265Encoder {
             .chroma_subsampling(chroma_subsampling)
             .luma_bit_depth(bit_depth_flags)
             .chroma_bit_depth(bit_depth_flags);
+        // Chain the usage/tuning info behind the codec profile struct. The
+        // same chain must appear in every profile construction for this
+        // session (see encode_usage_info).
+        let mut usage_info = crate::encoder::encode_usage_info(&config);
+        h265_profile_info.p_next =
+            (&mut usage_info as *mut vk::VideoEncodeUsageInfoKHR).cast();
         profile_info.p_next =
             (&mut h265_profile_info as *mut vk::VideoEncodeH265ProfileInfoKHR).cast();
 
@@ -310,6 +316,12 @@ impl H265Encoder {
             .chroma_subsampling(chroma_subsampling)
             .luma_bit_depth(bit_depth_flags)
             .chroma_bit_depth(bit_depth_flags);
+        // Chain the usage/tuning info behind the codec profile struct. The
+        // same chain must appear in every profile construction for this
+        // session (see encode_usage_info).
+        let mut usage_for_resources = crate::encoder::encode_usage_info(&config);
+        h265_profile_for_resources.p_next =
+            (&mut usage_for_resources as *mut vk::VideoEncodeUsageInfoKHR).cast();
         profile_for_resources.p_next =
             (&mut h265_profile_for_resources as *mut vk::VideoEncodeH265ProfileInfoKHR).cast();
 
@@ -390,6 +402,12 @@ impl H265Encoder {
             .chroma_subsampling(chroma_subsampling)
             .luma_bit_depth(bit_depth_flags)
             .chroma_bit_depth(bit_depth_flags);
+        // Chain the usage/tuning info behind the codec profile struct. The
+        // same chain must appear in every profile construction for this
+        // session (see encode_usage_info).
+        let mut usage_info_query = crate::encoder::encode_usage_info(&config);
+        h265_profile_info_query.p_next =
+            (&mut usage_info_query as *mut vk::VideoEncodeUsageInfoKHR).cast();
         profile_info_query.p_next =
             (&mut h265_profile_info_query as *mut vk::VideoEncodeH265ProfileInfoKHR).cast();
 
