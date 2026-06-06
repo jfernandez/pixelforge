@@ -863,6 +863,24 @@ impl ColorConverter {
         Ok(())
     }
 
+    /// Drop the cached source-image view if it was created for `image`.
+    ///
+    /// Call this before destroying a source image that was previously passed
+    /// to [`convert`](Self::convert): the cache is keyed by the raw image
+    /// handle, and Vulkan may recycle a destroyed image's handle for a new
+    /// image, which would otherwise match the cache and return a view created
+    /// against the freed image.
+    pub fn invalidate_source(&mut self, image: vk::Image) {
+        if let Some((cached_image, cached_view)) = self.cached_src_view {
+            if cached_image == image {
+                unsafe {
+                    self.context.device().destroy_image_view(cached_view, None);
+                }
+                self.cached_src_view = None;
+            }
+        }
+    }
+
     /// Get or create an ImageView for the source image.
     fn get_or_create_src_view(&mut self, src_image: vk::Image) -> Result<vk::ImageView> {
         // Return cached view if it matches the current source image.
